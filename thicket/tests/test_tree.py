@@ -14,8 +14,7 @@ def test_indices(rajaperf_unique_tunings):
     # No error
     tk.tree(metric_column="Avg time/rank", indices=tk.profile[0])
 
-    tk.metadata_column_to_perfdata("variant")
-    tk.metadata_column_to_perfdata("tuning")
+    tk.metadata_columns_to_perfdata(["variant", "tuning"])
 
     # Error because there are duplicate variants. We need to add the tuning to the index as well.
     tk.dataframe = (

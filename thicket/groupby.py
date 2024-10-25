@@ -83,7 +83,7 @@ class GroupBy(dict):
             if col not in index_names:
                 if col in tk_c.metadata.columns or col in df_columns:
                     if col not in df_columns:
-                        tk_c.metadata_column_to_perfdata(col)
+                        tk_c.metadata_columns_to_perfdata(col)
                     tk_c.dataframe = tk_c.dataframe.set_index(col, append=True)
                 else:
                     raise KeyError(f'"{col}" is not in the PerfData or MetaData.')

@@ -80,28 +80,63 @@ def test_statsframe(rajaperf_seq_O3_1M_cali):
     assert bool(re.search("1.000.*Basic_COPY8", tree_output))
 
 
-def test_metadata_column_to_perfdata(mpi_scaling_cali):
-    t_ens = Thicket.from_caliperreader(mpi_scaling_cali, disable_tqdm=True)
+def test_metadata_columns_to_perfdata(
+    rajaperf_cuda_block128_1M_cali, rajaperf_seq_O3_1M_cali
+):
+    tk = Thicket.from_caliperreader(
+        [rajaperf_cuda_block128_1M_cali[0], rajaperf_seq_O3_1M_cali[0]],
+        disable_tqdm=True,
+    )
+    tkc1 = tk.deepcopy()
 
-    example_column = "jobsize"
-    example_column_metrics = [27, 64, 125, 216, 343]
+    tk.metadata_columns_to_perfdata(["variant", "tuning"])
 
-    # Column should be in metadata table
-    assert example_column in t_ens.metadata
-    # Column should not be in performance data table
-    assert example_column not in t_ens.dataframe
-    # Assume second level index is profile
-    assert t_ens.dataframe.index.names[1] == "profile"
+    # Check columns added
+    assert "variant" in tk.dataframe.columns and "tuning" in tk.dataframe.columns
 
-    t_ens.metadata_column_to_perfdata(example_column)
+    # Check overwrite warning raised
+    with pytest.warns(UserWarning, match=r"Column .* already exists"):
+        tk.metadata_columns_to_perfdata(["variant", "tuning"])
 
-    # Column should be in performance data table
-    assert example_column in t_ens.dataframe
+    # Check drop works
+    tkc2 = tk.deepcopy()
+    tkc2.metadata_columns_to_perfdata("variant", overwrite=True, drop=True)
+    assert "variant" not in tkc2.metadata
 
-    # Check that the metrics exist in the performance data table
-    values = t_ens.dataframe[example_column].values.astype("int")
-    for metric in example_column_metrics:
-        assert metric in values
+    # Check error raise for join_key
+    tkc2.dataframe = tkc2.dataframe.reset_index(level="profile", drop=True)
+    with pytest.raises(KeyError, match="'profile' must be present"):
+        tkc2.metadata_columns_to_perfdata("tuning", overwrite=True)
+
+    # Check alternate join key
+    tk.metadata_columns_to_perfdata("ProblemSizeRunParam")
+    tk.metadata_columns_to_perfdata("user", join_key="ProblemSizeRunParam")
+    assert "user" in tk.dataframe
+
+    # Check column axis Thicket
+    # 1. without metadata_key
+    gb = tkc1.groupby(["variant", "tuning"])
+    ctk = Thicket.concat_thickets(
+        thickets=list(gb.values()),
+        axis="columns",
+        headers=list(gb.keys()),
+    )
+    ctk.metadata_columns_to_perfdata(
+        metadata_columns=[(("Base_CUDA", "block_128"), "ProblemSizeRunParam")]
+    )
+    assert (("Base_CUDA", "block_128"), "ProblemSizeRunParam") in ctk.dataframe.columns
+    # 2. with metadata_key
+    ctk2 = Thicket.concat_thickets(
+        thickets=list(gb.values()),
+        axis="columns",
+        headers=list(gb.keys()),
+        metadata_key="ProblemSizeRunParam",
+    )
+    ctk2.metadata_columns_to_perfdata(
+        metadata_columns=[(("Base_CUDA", "block_128"), "user")],
+        join_key="ProblemSizeRunParam",
+    )
+    assert (("Base_CUDA", "block_128"), "user") in ctk2.dataframe.columns
 
 
 def test_perfdata_column_to_statsframe(literal_thickets, mpi_scaling_cali):

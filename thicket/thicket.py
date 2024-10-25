@@ -629,35 +629,52 @@ class Thicket(GraphFrame):
             rsuffix="_right",
         )
 
-    def metadata_column_to_perfdata(self, metadata_key, overwrite=False, drop=False):
-        """Add a column from the metadata table to the performance data table.
+    def metadata_columns_to_perfdata(
+        self, metadata_columns, overwrite=False, drop=False, join_key="profile"
+    ):
+        """Add columns from the metadata table to the performance data table. Joins on join_key, an index or column that is present in both tables.
 
         Arguments:
-            metadata_key (str): Name of the column from the metadata table
+            metadata_columns (list or str): List of the columns from the metadata table
             overwrite (bool): Determines overriding behavior in performance data table
-            drop (bool): Whether to drop the column from the metadata table afterwards
+            drop (bool): Whether to drop the columns from the metadata table afterwards
+            join_key (str): Name of the index/column to join on if not 'profile'
         """
+        # Raise error if join_key is not present in both tables
+        if not (
+            join_key in self.dataframe.reset_index()
+            and join_key in self.metadata.reset_index()
+        ):
+            raise KeyError(
+                f"'{join_key}' must be present (index or columns) for both the performance data table and metadata table."
+            )
+
+        # Convert metadata_columns to list if str
+        if isinstance(metadata_columns, str):
+            metadata_columns = [metadata_columns]
+
         # Add warning if column already exists in performance data table
-        if metadata_key in self.dataframe.columns:
-            # Drop column to overwrite, otherwise warn and return
-            if overwrite:
-                self.dataframe.drop(metadata_key, axis=1, inplace=True)
-            else:
-                warnings.warn(
-                    "Column "
-                    + metadata_key
-                    + " already exists. Set 'overwrite=True' to force update the column."
-                )
-                return
+        for mkey in metadata_columns:
+            if mkey in self.dataframe.columns:
+                # Drop column to overwrite, otherwise warn and return
+                if overwrite:
+                    self.dataframe.drop(mkey, axis=1, inplace=True)
+                else:
+                    warnings.warn(
+                        "Column "
+                        + mkey
+                        + " already exists. Set 'overwrite=True' to force update the column."
+                    )
+                    return
 
         # Add the column to the performance data table
         self.dataframe = self.dataframe.join(
-            self.metadata[metadata_key], on=self.dataframe.index.names[1]
+            self.metadata[metadata_columns], on=join_key
         )
 
         # Drop column
         if drop:
-            self.metadata.drop(metadata_key, axis=1, inplace=True)
+            self.metadata.drop(metadata_columns, axis=1, inplace=True)
 
     def squash(self, update_inc_cols=True, new_statsframe=True):
         """Rewrite the Graph to include only nodes present in the performance
