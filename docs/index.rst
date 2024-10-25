@@ -62,6 +62,12 @@ If you encounter bugs while using thicket, you can report them by opening an iss
 
 .. toctree::
    :maxdepth: 2
+   :caption: Reference
+
+   publications
+
+.. toctree::
+   :maxdepth: 2
    :caption: Developer Docs
 
    developer_guide
