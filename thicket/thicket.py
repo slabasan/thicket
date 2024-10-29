@@ -616,13 +616,22 @@ class Thicket(GraphFrame):
         # make and return thicket?
         return th
 
-    def add_ncu(self, ncu_report_mapping, chosen_metrics=None, overwrite=False):
+    def add_ncu(
+        self,
+        ncu_report_mapping,
+        chosen_metrics=None,
+        overwrite=False,
+        debug=False,
+        disable_tqdm=False,
+    ):
         """Add NCU data into the PerformanceDataFrame
 
         Arguments:
-            ncu_report_mapping (dict): mapping from NCU report file to profile
+            ncu_report_mapping (dict): mapping from NCU report file to Caliper CUDA Activity Profile
             chosen_metrics (list): list of metrics to sub-select from NCU report. By default, all metrics are used.
             overwrite (bool): whether to overwrite existing columns in the Thicket.DataFrame
+            debug (bool): whether to print debug information
+            disable_tqdm (bool): whether to display tqdm progress bar
         """
 
         def _rep_agg_func(col):
@@ -663,7 +672,12 @@ class Thicket(GraphFrame):
         ncureader = NCUReader()
 
         # Dictionary of NCU data
-        data_dict, rollup_dict = ncureader._read_ncu(self, ncu_report_mapping)
+        data_dict, rollup_dict = ncureader._read_ncu(
+            thicket=self,
+            ncu_report_mapping=ncu_report_mapping,
+            debug=debug,
+            disable_tqdm=disable_tqdm,
+        )
 
         # Create empty df
         ncu_df = pd.DataFrame()
